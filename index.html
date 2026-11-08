@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#132331">
+  <meta name="description" content="《萨温之青火》四幕日语单人调查游戏。">
+  <title>萨温之青火 · 四幕单人版</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./player.mjs"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand frame">
+      <p class="eyebrow">Samhain <span aria-hidden="true">✦</span> A Japanese Adventure</p>
+      <h1 lang="ja">サウィンの青い火</h1>
+      <p class="edition">萨温之青火 <span aria-hidden="true">·</span> 四幕单人版</p>
+    </div>
+  </header>
+  <nav class="tabbar" aria-label="游戏导航">
+    <div class="frame tabs">
+      <a id="story-tab" href="#act-1">故事</a>
+      <a id="grammar-tab" href="#grammar">日语文法</a>
+      <a id="inventory-tab" href="#inventory">道具栏 <span id="item-count">0</span></a>
+    </div>
+  </nav>
+  <main class="frame">
+    <p id="save-warning" class="warning" role="status" hidden></p>
+    <nav id="chapters" class="chapters" aria-label="章节"></nav>
+    <div id="content"></div>
+    <noscript><p class="warning">请启用 JavaScript 后重新打开游戏。</p></noscript>
+  </main>
+  <footer class="footer frame">
+    <p>进度保存在当前网址和浏览器中。</p>
+    <button id="restart" type="button" class="quiet">重新开始</button>
+  </footer>
+  <dialog id="viewer" aria-labelledby="image-title">
+    <div class="viewer-head">
+      <strong id="image-title"></strong>
+      <form method="dialog"><button type="submit" class="quiet">关闭</button></form>
+    </div>
+    <img id="large-image" alt="">
+  </dialog>
+  <dialog id="reset-dialog" class="confirm" aria-labelledby="reset-title">
+    <h2 id="reset-title">重新开始这一局？</h2>
+    <p>当前浏览器在这个网址的进度与道具将被清除。</p>
+    <form method="dialog">
+      <button value="cancel" class="secondary" autofocus>取消</button>
+      <button value="reset" class="primary">确认重开</button>
+    </form>
+  </dialog>
+</body>
+</html>
