@@ -1,4 +1,4 @@
-import { cards, grammarImage } from './assets.mjs';
+import { cards, grammarImage, storyImages } from './assets.mjs';
 import { scenes } from './story.mjs';
 import { cardText } from './card-text.mjs';
 import { appendRuby, setJapaneseText } from './ruby.mjs';
@@ -146,15 +146,12 @@ function showImage(src, title) {
   viewer.showModal();
 }
 
-function cardArt(id, className = '') {
-  const art = el('span', `card-art ${className}`);
-  art.setAttribute('aria-hidden', 'true');
-  const image = el('img');
+function cardImage(id, className = '') {
+  const image = el('img', `card-image ${className}`);
   image.src = cards[id].src;
   image.alt = '';
   image.loading = 'lazy';
-  art.append(image);
-  return art;
+  return image;
 }
 
 function readableCard(id) {
@@ -162,7 +159,7 @@ function readableCard(id) {
   const card = el('article', 'readable-card');
   card.lang = 'ja';
   card.dataset.cardId = id;
-  card.append(ja('p', 'card-number', `調査カード ${id}`), cardArt(id));
+  card.append(ja('p', 'card-number', `調査カード ${id}`), cardImage(id));
   const copy = el('div', 'card-copy');
   copy.append(ja('p', 'card-keyword', `調査キーワード：${keyword}`), ja('h3', '', cards[id].title));
   for (const paragraph of body.split('\n')) copy.append(ja('p', '', paragraph));
@@ -194,7 +191,7 @@ function cardList(ids, { showFaces = false } = {}) {
     const link = button('', 'card-link', () => showCard(id));
     const title = el('span');
     title.append(ja('small', '', `調査カード ${id}`), ja('strong', '', card.title));
-    link.append(cardArt(id, 'card-thumbnail'), title);
+    link.append(cardImage(id, 'card-thumbnail'), title);
     list.append(link);
   }
   return list;
@@ -276,7 +273,9 @@ function storyText(scene, interactive) {
 
 function cover(scene) {
   const hero = el('header', 'scene');
-  const image = cardArt(`${scene.act}-01`, 'cover');
+  const image = el('img', 'cover');
+  image.src = storyImages[scene.act - 1];
+  image.alt = '';
   const heading = el('div', 'scene-heading');
   const title = ja('h2', '', scene.title);
   title.tabIndex = -1;
