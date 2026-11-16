@@ -47,7 +47,6 @@ h1[lang="ja"], h2[lang="ja"], h3[lang="ja"] { line-height: 1.9; }
 .layout { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(15.5rem, 1fr); gap: 1rem; align-items: start; }
 .paper { border: 1px solid var(--line); background: var(--card); border-radius: .75rem; box-shadow: 0 5px 22px #5239130e; overflow: hidden; }
 .scene { color: #fff8e7; background: var(--navy); }
-.scene .cover { display: block; width: 100%; height: auto; }
 .scene-heading { display: flex; flex-direction: column; align-items: start; padding: 1.2rem 1.5rem; }
 .scene-heading h2 { font-size: clamp(1.5rem, 4vw, 2.2rem); margin: .25rem 0; }
 .scene-heading .subtitle { font-size: .68rem; letter-spacing: .14em; color: #f5ddae; margin: 0; }

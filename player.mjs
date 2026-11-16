@@ -1,4 +1,4 @@
-import { cards, grammarImage, storyImages } from './assets.mjs';
+import { cards, grammarImage } from './assets.mjs';
 import { scenes } from './story.mjs';
 import { cardText } from './card-text.mjs';
 import { appendRuby, setJapaneseText } from './ruby.mjs';
@@ -271,16 +271,13 @@ function storyText(scene, interactive) {
   return copy;
 }
 
-function cover(scene) {
+function sceneHeader(scene) {
   const hero = el('header', 'scene');
-  const image = el('img', 'cover');
-  image.src = storyImages[scene.act - 1];
-  image.alt = '';
   const heading = el('div', 'scene-heading');
   const title = ja('h2', '', scene.title);
   title.tabIndex = -1;
   heading.append(ja('p', 'eyebrow', `第 ${scene.act} 幕`), title, el('p', 'subtitle', scene.subtitle));
-  hero.append(image, heading);
+  hero.append(heading);
   return hero;
 }
 
@@ -315,7 +312,7 @@ function renderScene(actNumber) {
   const interactive = actNumber === state.act;
   const layout = el('div', 'layout');
   const story = el('article', 'paper');
-  story.append(cover(scene), storyText(scene, interactive));
+  story.append(sceneHeader(scene), storyText(scene, interactive));
   const side = el('aside', 'paper');
   if (interactive) {
     const progress = el('section', 'panel');
