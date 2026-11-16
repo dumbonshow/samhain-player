@@ -148,7 +148,7 @@ export const cards = {
     "src": "card-3-07.jpg"
   },
   "3-08": {
-    "title": "古い信物",
+    "title": "古い指輪",
     "src": "card-3-08.jpg"
   },
   "3-09": {

@@ -44,7 +44,7 @@ const inspect = 'inspect';
 const talk = 'talk';
 const take = 'pick';
 const noEffect = 'その行動では、状況は変わりませんでした。';
-const notReady = '今はその行動を進められませんでした。';
+const notReady = '今はその行動を実行できません。';
 const awkwardActions = {
   pick: {
     objects: ['square', 'fork', 'plain'],
