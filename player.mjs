@@ -1,8 +1,8 @@
 import { cards, grammarImage, storyImages } from './assets.mjs';
 import { scenes } from './story.mjs';
 import {
-  availableTargets, endingCards, gate, items, lastResult, newGame, perform, restoreGame,
-  routeFor, saveGame, seenCards, targetActions, useItem
+  availableTargets, endingCards, explorationVerbs, explore, gate, items, itemVerbs, lastResult,
+  newGame, perform, restoreGame, routeFor, saveGame, seenCards, useItem, verbs
 } from './game.mjs';
 
 const key = 'samhain-player-save-v1';
@@ -91,7 +91,7 @@ function goto(destination) {
   window.scrollTo(0, 0);
 }
 
-function apply(result) {
+function apply(result, { scrollToResult = false } = {}) {
   const priorAct = state.act;
   state = result.state;
   feedback = result;
@@ -104,7 +104,10 @@ function apply(result) {
     return;
   }
   render();
-  document.getElementById('feedback')?.focus({ preventScroll: true });
+  const feedbackStatus = document.getElementById('feedback');
+  const showCard = scrollToResult && result.cards.length && window.matchMedia('(max-width: 720px)').matches;
+  feedbackStatus?.focus({ preventScroll: !scrollToResult || showCard });
+  if (showCard) document.getElementById('action-result')?.scrollIntoView({ block: 'start' });
 }
 
 function act(id) {
@@ -119,19 +122,25 @@ function showImage(src, title) {
   viewer.showModal();
 }
 
-function cardList(ids) {
+function cardList(ids, { showFaces = false } = {}) {
   const list = el('div', 'card-list');
   for (const id of ids) {
     const card = cards[id];
-    const link = button('', 'card-link', () => showImage(card.src, card.title));
+    const link = button('', showFaces ? 'card-link card-face' : 'card-link', () => showImage(card.src, card.title));
     const image = el('img');
     image.src = card.src;
     image.alt = '';
-    image.loading = 'lazy';
+    if (!showFaces) image.loading = 'lazy';
     const title = el('span');
     title.append(el('small', '', `調査カード ${id}`), el('strong', '', card.title));
     title.lastChild.lang = 'ja';
-    link.append(image, title);
+    if (showFaces) {
+      const caption = el('span', 'card-face-caption');
+      caption.append(title, el('small', '', '查看大图'));
+      link.append(caption, image);
+    } else {
+      link.append(image, title);
+    }
     list.append(link);
   }
   return list;
@@ -139,13 +148,27 @@ function cardList(ids) {
 
 function feedbackPanel() {
   const panel = el('section', 'panel');
+  panel.id = 'action-result';
   panel.append(el('h3', '', '行动结果'));
-  const status = el('p', feedback.message ? 'status' : 'muted', feedback.message || '选择行动后，结果会出现在这里。');
+  const status = el('p', feedback.message ? 'status' : 'muted');
+  if (feedback.sentence) {
+    if (feedback.usageNote) status.append(el('span', 'attempt-label', '你选择的句子'));
+    const sentence = el('span', 'attempt-sentence', feedback.sentence);
+    sentence.lang = 'ja';
+    status.append(sentence);
+  }
+  if (feedback.usageNote) {
+    const joke = el('span', '', feedback.message);
+    joke.lang = 'ja';
+    status.append(joke, el('span', 'usage-note', feedback.usageNote));
+  } else {
+    status.append(feedback.message || '选择行动后，结果会出现在这里。');
+  }
   status.id = 'feedback';
   status.tabIndex = -1;
   status.setAttribute('role', 'status');
   panel.append(status);
-  if (feedback.cards.length) panel.append(cardList(feedback.cards));
+  if (feedback.cards.length) panel.append(cardList(feedback.cards, { showFaces: true }));
   return panel;
 }
 
@@ -154,7 +177,13 @@ function keyword(name, target, interactive) {
   const control = button(name, 'keyword', () => {
     selectedTarget = target;
     render();
-    document.getElementById('action-title').focus();
+    const title = document.getElementById('action-title');
+    if (window.matchMedia('(max-width: 720px)').matches) {
+      title.focus({ preventScroll: true });
+      title.scrollIntoView({ block: 'center' });
+    } else {
+      title.focus();
+    }
   });
   control.setAttribute('aria-pressed', String(target === selectedTarget));
   return control;
@@ -202,6 +231,15 @@ function cover(scene) {
   return hero;
 }
 
+function verbButtons(choices, choose) {
+  const actions = el('div', 'verb-choices');
+  actions.lang = 'ja';
+  for (const verb of choices) {
+    actions.append(button(verbs[verb][0], 'secondary', () => choose(verb)));
+  }
+  return actions;
+}
+
 function actionPanel() {
   const panel = el('section', 'panel');
   const name = availableTargets(state).find(({ id }) => id === selectedTarget)?.name;
@@ -211,16 +249,12 @@ function actionPanel() {
   if (name) title.lang = 'ja';
   panel.append(el('div', 'panel-label', '調査 · INVESTIGATE'), title);
   if (!name) {
-    panel.append(el('p', 'muted', '点击故事中的红色关键词，选择要做的日语行动。'));
+    panel.append(el('p', 'muted', '点击故事中的红色关键词，再选择日语动词。'));
     return panel;
   }
-  const actions = el('div', 'action-row');
-  actions.lang = 'ja';
-  for (const option of targetActions(state, selectedTarget)) {
-    actions.append(button(option.label, 'secondary', () => act(option.id)));
-  }
-  if (actions.childElementCount) panel.append(actions);
-  else panel.append(el('p', 'muted', '可以从道具栏选择物品，再选这里作为使用对象。'));
+  panel.append(verbButtons(explorationVerbs(state.act), verb => {
+    if (syncBeforeAction()) apply(explore(state, selectedTarget, verb), { scrollToResult: true });
+  }));
   return panel;
 }
 
@@ -233,30 +267,39 @@ function renderScene(actNumber) {
   const side = el('aside', 'paper');
   if (interactive) {
     const progress = el('section', 'panel');
-    const { ready, hint } = gate(state);
+    const { ready } = gate(state);
     const next = button(actNumber === 4 ? '查看结局' : '进入下一幕', 'primary', () => act(`next-${actNumber}`));
     next.disabled = !ready;
     next.setAttribute('aria-describedby', 'chapter-hint');
-    const message = el('p', 'muted', ready ? '本幕条件已齐，可以继续。' : hint);
+    const readyMessage = actNumber === 4 ? '可以查看结局。' : '可以进入下一幕。';
+    const message = el('p', 'muted', ready ? readyMessage : '本幕尚未完成。');
     message.id = 'chapter-hint';
-    if (!ready) message.lang = 'ja';
     progress.append(el('h3', '', '章节推进'), message, next);
-    side.append(actionPanel(), feedbackPanel(), progress);
+    side.append(actionPanel(), feedbackPanel(), inventoryPanel(true), progress);
   } else {
     const archive = el('section', 'panel');
     archive.append(el('h3', '', '本幕调查记录'), el('p', 'muted', '回看已经揭示的卡片。'));
     archive.append(cardList(seenCards(state, actNumber)));
-    side.append(archive);
+    side.append(archive, inventoryPanel(false));
   }
   layout.append(story, side);
   return layout;
 }
 
-function inventoryPanel() {
-  const layout = el('div', 'layout');
-  const paper = el('section', 'paper panel');
-  paper.append(el('h2', '', '道具栏'), el('p', 'muted', '点击道具名称可查看卡片，也可以选择使用目标。'));
-  if (!state.inventory.length) paper.append(el('p', '', '目前还没有道具。'));
+function inventoryPanel(canUse) {
+  const panel = el('section', 'panel');
+  panel.id = 'story-inventory';
+  panel.setAttribute('aria-labelledby', 'inventory-title');
+  const title = el('h3', '', '道具栏');
+  title.id = 'inventory-title';
+  const count = el('span', 'inventory-count', String(state.inventory.length));
+  count.setAttribute('aria-label', `${state.inventory.length} 件道具`);
+  title.append(' ', count);
+  panel.append(title);
+  if (!state.inventory.length) {
+    panel.append(el('p', 'muted', '目前还没有道具。'));
+    return panel;
+  }
   const list = el('ul', 'inventory-list');
   for (const item of state.inventory) {
     const [name, chinese, cardId] = items[item];
@@ -266,7 +309,7 @@ function inventoryPanel() {
     japanese.lang = 'ja';
     label.append(japanese, el('small', '', chinese));
     row.append(label);
-    if (state.act < 5) {
+    if (canUse) {
       const use = button('选择使用', 'secondary', () => {
         selectedItem = item;
         render();
@@ -277,16 +320,13 @@ function inventoryPanel() {
     }
     list.append(row);
   }
-  if (list.childElementCount) paper.append(list);
-  if (state.act < 5 && state.inventory.includes(selectedItem)) paper.append(useForm(selectedItem));
-  const result = el('aside', 'paper');
-  result.append(feedbackPanel());
-  layout.append(paper, result);
-  return layout;
+  panel.append(list);
+  if (canUse && state.inventory.includes(selectedItem)) panel.append(useForm(selectedItem));
+  return panel;
 }
 
 function useForm(item) {
-  const form = el('form', 'use-form');
+  const form = el('div', 'use-form');
   const label = el('label', '', `使用 ${items[item][1]} · 选择目标`);
   label.htmlFor = 'use-target';
   const select = el('select');
@@ -302,25 +342,32 @@ function useForm(item) {
     select.append(option);
   }
   if ([...select.options].some(option => option.value === selectedTarget)) select.value = selectedTarget;
-  const submit = el('button', 'primary', '使用します');
-  submit.type = 'submit';
-  submit.lang = 'ja';
-  const actions = el('div', 'action-row');
-  actions.append(submit);
-  form.append(label, select, actions);
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-    if (!syncBeforeAction()) return;
+  const actions = verbButtons(itemVerbs, verb => {
+    if (!select.reportValidity() || !syncBeforeAction()) return;
     selectedTarget = select.value;
-    apply(useItem(state, item, selectedTarget));
+    apply(useItem(state, item, selectedTarget, verb), { scrollToResult: true });
   });
+  form.append(label, select, actions);
   return form;
 }
 
 function renderGrammar() {
   const paper = el('section', 'paper panel');
   paper.append(el('h2', '', '日语文法'));
-  paper.append(el('p', 'muted', '查阅常用的日语行动句型。点击图片放大。'));
+  paper.append(el('p', 'muted', '查阅游戏里常用的动词、读音和助词用法。'));
+  const list = el('dl', 'grammar-list');
+  for (const [word, reading, meaning, example] of Object.values(verbs)) {
+    const entry = el('div');
+    const term = el('dt', '', word);
+    term.lang = 'ja';
+    const kana = el('span', 'muted', reading);
+    term.append(' ', kana);
+    const sample = el('dd', 'grammar-example', example);
+    sample.lang = 'ja';
+    entry.append(term, el('dd', '', meaning), sample);
+    list.append(entry);
+  }
+  paper.append(list, el('h3', '', '行动句型图'));
   const control = button('', 'grammar-image', () => showImage(grammarImage, 'TRPGで使う 日本語文法の呪文'));
   const image = el('img');
   image.src = grammarImage;
@@ -331,23 +378,26 @@ function renderGrammar() {
 }
 
 function renderEnding() {
-  const ending = el('section', 'paper panel ending');
+  const layout = el('div', 'layout');
+  const ending = el('section', 'paper panel');
   const title = el('h2', '', '四幕完结 · 大地の祝福');
   title.tabIndex = -1;
   ending.append(title, el('p', '', '萨温之夜即将过去，暖意重返大地。'));
   ending.append(cardList(endingCards(state)));
-  return ending;
+  const side = el('aside', 'paper');
+  side.append(inventoryPanel(false));
+  layout.append(ending, side);
+  return layout;
 }
 
 function render() {
   route = routeFor(location.hash, state);
   if (location.hash !== `#${route}`) history.replaceState(null, '', `#${route}`);
-  document.getElementById('item-count').textContent = state.inventory.length;
   const storyTab = document.getElementById('story-tab');
   storyTab.href = `#${storyRoute()}`;
   for (const [id, active] of [
     ['story-tab', route.startsWith('act-') || route === 'ending'],
-    ['grammar-tab', route === 'grammar'], ['inventory-tab', route === 'inventory']
+    ['grammar-tab', route === 'grammar']
   ]) {
     const tab = document.getElementById(id);
     if (active) tab.setAttribute('aria-current', 'page');
@@ -362,8 +412,7 @@ function render() {
     label.append(el('small', '', locked ? '未解锁' : act < state.act ? '可回看' : '进行中'));
     chapters.append(label);
   }
-  if (route === 'inventory') content.replaceChildren(inventoryPanel());
-  else if (route === 'grammar') content.replaceChildren(renderGrammar());
+  if (route === 'grammar') content.replaceChildren(renderGrammar());
   else if (route === 'ending') content.replaceChildren(renderEnding());
   else content.replaceChildren(renderScene(Number(route.slice(4))));
 }

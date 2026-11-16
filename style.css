@@ -32,7 +32,7 @@ h2, h3 { margin: 0; line-height: 1.35; }
 .tabs { display: flex; gap: .45rem; padding-block: .55rem; }
 .tabs a { color: #f0e5d0; padding: .5rem 1rem; text-decoration: none; border: 1px solid #8e816c; border-radius: .45rem; font-size: .9rem; font-weight: 700; }
 .tabs a[aria-current] { color: var(--navy-deep); background: #e1bd82; border-color: #e1bd82; }
-#item-count { display: inline-block; text-align: center; min-width: 1.4em; border-radius: 1em; background: #92703b33; padding: 0 .2rem; }
+.inventory-count { display: inline-block; min-width: 1.5em; border-radius: 1em; background: #92703b24; color: var(--navy); padding: .06em .35em; text-align: center; font: 700 .76em/1.5 system-ui, sans-serif; }
 .chapters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .55rem; margin: 1.2rem 0; }
 .chapter { display: flex; align-items: center; justify-content: space-between; gap: .25rem; padding: .55rem .7rem; border: 1px solid var(--line); border-radius: .45rem; background: var(--card); font-weight: 700; color: var(--navy); text-decoration: none; }
 .chapter small { color: var(--muted); font-size: .74rem; font-weight: 500; }
@@ -70,12 +70,22 @@ h2, h3 { margin: 0; line-height: 1.35; }
 .secondary:hover, .quiet:hover { background: #ead7b6; }
 .quiet { background: transparent; color: inherit; }
 .action-row, .inline { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; margin-top: .6rem; }
+.verb-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; margin-top: .6rem; }
+.verb-choices button { min-height: 44px; padding-inline: .35rem; }
+.attempt-sentence { display: block; margin-bottom: .25rem; color: var(--navy); }
+.attempt-label, .usage-note { display: block; color: var(--muted); font-weight: 400; }
+.attempt-label { font-size: .82rem; }
+.usage-note { margin-top: .45rem; }
 .status { color: #235352; font-weight: 700; }
 .card-list { display: grid; gap: .5rem; margin-top: .65rem; }
 .card-link { display: flex; gap: .65rem; align-items: center; text-align: left; width: 100%; padding: .35rem .5rem; border: 1px solid var(--line); border-radius: .45rem; color: var(--ink); background: #fffbf2; }
 .card-link:hover { border-color: var(--gold); }
 .card-link img { width: 3.1rem; height: 3.55rem; object-fit: cover; object-position: top; border-radius: .2rem; }
 .card-link small { display: block; color: var(--muted); }
+.card-face { display: grid; gap: .45rem; padding: .45rem; }
+.card-face img { display: block; width: 100%; height: auto; aspect-ratio: auto 15 / 22; object-fit: contain; }
+.card-face-caption { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding-inline: .2rem; }
+.card-face-caption > small { flex-shrink: 0; }
 .inventory-list { padding: 0; list-style: none; margin: .6rem 0 0; display: grid; gap: .5rem; }
 .inventory-list li { display: flex; justify-content: space-between; align-items: center; gap: .5rem; border-top: 1px solid var(--line); padding: .55rem 0 0; }
 .item-name { border: 0; color: var(--navy); background: transparent; text-align: start; padding: .2rem; }
@@ -87,7 +97,12 @@ h2, h3 { margin: 0; line-height: 1.35; }
 .footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: 1.3rem 2.3rem; color: var(--muted); font-size: .8rem; }
 .grammar-image { display: block; width: min(100%, 36rem); margin: .7rem auto 0; border: 1px solid var(--line); }
 .grammar-image img { width: 100%; display: block; }
-.ending { max-width: 44rem; margin-inline: auto; }
+.grammar-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .65rem; }
+.grammar-list > div { padding: .65rem .8rem; border: 1px solid var(--line); border-radius: .45rem; }
+.grammar-list dt { font-weight: 700; }
+.grammar-list dt .muted { font-weight: 400; }
+.grammar-list dd { margin: 0; }
+.grammar-example { color: var(--muted); }
 dialog { width: min(52rem, calc(100% - 1rem)); max-height: 96dvh; padding: 0; border: 1px solid var(--gold); border-radius: .55rem; background: var(--navy-deep); color: var(--card); }
 dialog::backdrop { background: #071018db; }
 .viewer-head { display: flex; justify-content: space-between; align-items: center; padding: .65rem .8rem; }
@@ -101,4 +116,5 @@ dialog::backdrop { background: #071018db; }
   .story-copy, .scene-heading { padding-inline: 1rem; }
   .scene-heading { min-height: 9rem; }
   .tabs a { padding-inline: .8rem; }
+  #action-result { scroll-margin-top: 4rem; }
 }
