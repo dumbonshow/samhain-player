@@ -1,5 +1,7 @@
-import { cards, grammarImage, storyImages } from './assets.mjs';
+import { cards, grammarImage } from './assets.mjs';
 import { scenes } from './story.mjs';
+import { cardText } from './card-text.mjs';
+import { appendRuby, setJapaneseText } from './ruby.mjs';
 import {
   availableTargets, endingCards, explorationVerbs, explore, gate, items, itemVerbs, lastResult,
   newGame, perform, restoreGame, routeFor, saveGame, seenCards, useItem, verbs
@@ -24,6 +26,25 @@ function el(tag, className, text) {
   if (className) element.className = className;
   if (text !== undefined) element.textContent = text;
   return element;
+}
+
+function ja(tag, className, text) {
+  return setJapaneseText(el(tag, className), text);
+}
+
+function japaneseButton(label, className, action) {
+  return setJapaneseText(button('', className, action), label);
+}
+
+function usageText(text) {
+  const note = el('span', 'usage-note');
+  let end = 0;
+  for (const match of text.matchAll(/「([^」]+)」/g)) {
+    note.append(text.slice(end, match.index), '「', ja('span', '', match[1]), '」');
+    end = match.index + match[0].length;
+  }
+  note.append(text.slice(end));
+  return note;
 }
 
 function button(label, className, action) {
@@ -115,32 +136,65 @@ function act(id) {
 }
 
 function showImage(src, title) {
-  document.getElementById('image-title').textContent = title;
+  setJapaneseText(document.getElementById('image-title'), title);
   const image = document.getElementById('large-image');
+  document.getElementById('card-reader').replaceChildren();
+  document.getElementById('card-reader').hidden = true;
+  image.hidden = false;
   image.src = src;
   image.alt = title;
   viewer.showModal();
+}
+
+function cardArt(id, className = '') {
+  const art = el('span', `card-art ${className}`);
+  art.setAttribute('aria-hidden', 'true');
+  const image = el('img');
+  image.src = cards[id].src;
+  image.alt = '';
+  image.loading = 'lazy';
+  art.append(image);
+  return art;
+}
+
+function readableCard(id) {
+  const [keyword, body, note] = cardText[id];
+  const card = el('article', 'readable-card');
+  card.lang = 'ja';
+  card.dataset.cardId = id;
+  card.append(ja('p', 'card-number', `調査カード ${id}`), cardArt(id));
+  const copy = el('div', 'card-copy');
+  copy.append(ja('p', 'card-keyword', `調査キーワード：${keyword}`), ja('h3', '', cards[id].title));
+  for (const paragraph of body.split('\n')) copy.append(ja('p', '', paragraph));
+  if (note) copy.append(ja('p', 'card-hint', note));
+  card.append(copy);
+  return card;
+}
+
+function showCard(id) {
+  setJapaneseText(document.getElementById('image-title'), cards[id].title);
+  document.getElementById('large-image').hidden = true;
+  const reader = document.getElementById('card-reader');
+  reader.hidden = false;
+  reader.replaceChildren(readableCard(id));
+  viewer.showModal();
+  viewer.scrollTop = 0;
 }
 
 function cardList(ids, { showFaces = false } = {}) {
   const list = el('div', 'card-list');
   for (const id of ids) {
     const card = cards[id];
-    const link = button('', showFaces ? 'card-link card-face' : 'card-link', () => showImage(card.src, card.title));
-    const image = el('img');
-    image.src = card.src;
-    image.alt = '';
-    if (!showFaces) image.loading = 'lazy';
-    const title = el('span');
-    title.append(el('small', '', `調査カード ${id}`), el('strong', '', card.title));
-    title.lastChild.lang = 'ja';
     if (showFaces) {
-      const caption = el('span', 'card-face-caption');
-      caption.append(title, el('small', '', '查看大图'));
-      link.append(caption, image);
-    } else {
-      link.append(image, title);
+      const face = el('section', 'card-face');
+      face.append(readableCard(id), button('放大阅读', 'secondary card-open', () => showCard(id)));
+      list.append(face);
+      continue;
     }
+    const link = button('', 'card-link', () => showCard(id));
+    const title = el('span');
+    title.append(ja('small', '', `調査カード ${id}`), ja('strong', '', card.title));
+    link.append(cardArt(id, 'card-thumbnail'), title);
     list.append(link);
   }
   return list;
@@ -153,16 +207,18 @@ function feedbackPanel() {
   const status = el('p', feedback.message ? 'status' : 'muted');
   if (feedback.sentence) {
     if (feedback.usageNote) status.append(el('span', 'attempt-label', '你选择的句子'));
-    const sentence = el('span', 'attempt-sentence', feedback.sentence);
-    sentence.lang = 'ja';
+    const sentence = ja('span', 'attempt-sentence', feedback.sentence);
     status.append(sentence);
   }
   if (feedback.usageNote) {
-    const joke = el('span', '', feedback.message);
-    joke.lang = 'ja';
-    status.append(joke, el('span', 'usage-note', feedback.usageNote));
+    const joke = ja('span', '', feedback.message);
+    status.append(joke, usageText(feedback.usageNote));
   } else {
-    status.append(feedback.message || '选择行动后，结果会出现在这里。');
+    if (feedback.message && /[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(feedback.message)) {
+      status.append(ja('span', '', feedback.message));
+    } else {
+      status.append(feedback.message || '选择行动后，结果会出现在这里。');
+    }
   }
   status.id = 'feedback';
   status.tabIndex = -1;
@@ -173,8 +229,8 @@ function feedbackPanel() {
 }
 
 function keyword(name, target, interactive) {
-  if (!interactive) return el('strong', '', name);
-  const control = button(name, 'keyword', () => {
+  if (!interactive) return ja('strong', '', name);
+  const control = japaneseButton(name, 'keyword', () => {
     selectedTarget = target;
     render();
     const title = document.getElementById('action-title');
@@ -198,18 +254,19 @@ function storyText(scene, interactive) {
     let end = 0;
     for (const match of text.matchAll(/【([^|]+)\|([\w-]+)】/g)) {
       const [token, name, target] = match;
-      p.append(text.slice(end, match.index), keyword(name, target, interactive));
+      appendRuby(p, text.slice(end, match.index));
+      p.append(keyword(name, target, interactive));
       end = match.index + token.length;
       base.add(target);
     }
-    p.append(text.slice(end));
+    appendRuby(p, text.slice(end));
     copy.append(p);
   }
   if (interactive) {
     const extra = availableTargets(state).filter(({ id }) => !base.has(id));
     if (extra.length) {
       const discoveries = el('section', 'extra');
-      discoveries.append(el('h3', '', '見つけた手がかり'));
+      discoveries.append(ja('h3', '', '見つけた手がかり'));
       for (const { id, name } of extra) discoveries.append(keyword(name, id, true));
       copy.append(discoveries);
     }
@@ -219,14 +276,11 @@ function storyText(scene, interactive) {
 
 function cover(scene) {
   const hero = el('header', 'scene');
-  const image = el('img', 'cover');
-  image.src = storyImages[scene.act - 1];
-  image.alt = '';
+  const image = cardArt(`${scene.act}-01`, 'cover');
   const heading = el('div', 'scene-heading');
-  const title = el('h2', '', scene.title);
-  title.lang = 'ja';
+  const title = ja('h2', '', scene.title);
   title.tabIndex = -1;
-  heading.append(el('p', 'eyebrow', `第 ${scene.act} 幕`), title, el('p', 'subtitle', scene.subtitle));
+  heading.append(ja('p', 'eyebrow', `第 ${scene.act} 幕`), title, el('p', 'subtitle', scene.subtitle));
   hero.append(image, heading);
   return hero;
 }
@@ -235,7 +289,7 @@ function verbButtons(choices, choose) {
   const actions = el('div', 'verb-choices');
   actions.lang = 'ja';
   for (const verb of choices) {
-    actions.append(button(verbs[verb][0], 'secondary', () => choose(verb)));
+    actions.append(japaneseButton(verbs[verb][0], 'secondary', () => choose(verb)));
   }
   return actions;
 }
@@ -243,11 +297,10 @@ function verbButtons(choices, choose) {
 function actionPanel() {
   const panel = el('section', 'panel');
   const name = availableTargets(state).find(({ id }) => id === selectedTarget)?.name;
-  const title = el('h3', '', name || '选择行动');
+  const title = name ? ja('h3', '', name) : el('h3', '', '选择行动');
   title.id = 'action-title';
   title.tabIndex = -1;
-  if (name) title.lang = 'ja';
-  panel.append(el('div', 'panel-label', '調査 · INVESTIGATE'), title);
+  panel.append(ja('div', 'panel-label', '調査 · INVESTIGATE'), title);
   if (!name) {
     panel.append(el('p', 'muted', '点击故事中的红色关键词，再选择日语动词。'));
     return panel;
@@ -304,9 +357,8 @@ function inventoryPanel(canUse) {
   for (const item of state.inventory) {
     const [name, chinese, cardId] = items[item];
     const row = el('li');
-    const label = button('', 'item-name', () => showImage(cards[cardId].src, name));
-    const japanese = el('strong', '', name);
-    japanese.lang = 'ja';
+    const label = button('', 'item-name', () => showCard(cardId));
+    const japanese = ja('strong', '', name);
     label.append(japanese, el('small', '', chinese));
     row.append(label);
     if (canUse) {
@@ -327,27 +379,39 @@ function inventoryPanel(canUse) {
 
 function useForm(item) {
   const form = el('div', 'use-form');
-  const label = el('label', '', `使用 ${items[item][1]} · 选择目标`);
-  label.htmlFor = 'use-target';
-  const select = el('select');
-  select.id = 'use-target';
-  select.required = true;
-  const placeholder = el('option', '', '请选择目标');
-  placeholder.value = '';
-  select.append(placeholder);
+  const targets = el('fieldset', 'use-targets');
+  targets.id = 'use-target';
+  targets.tabIndex = -1;
+  targets.append(el('legend', '', `使用 ${items[item][1]} · 选择目标`));
+  const choices = el('div', 'target-choices');
   for (const { id, name } of [...availableTargets(state), { id: 'self', name: '自分' }]) {
-    const option = el('option', '', name);
+    const label = el('label', 'target-choice');
+    const option = el('input');
+    option.type = 'radio';
+    option.name = 'use-target';
     option.value = id;
-    option.lang = 'ja';
-    select.append(option);
+    option.checked = id === selectedTarget;
+    option.addEventListener('change', () => { selectedTarget = id; });
+    label.append(option, ja('span', '', name));
+    choices.append(label);
   }
-  if ([...select.options].some(option => option.value === selectedTarget)) select.value = selectedTarget;
+  targets.append(choices);
+  const hint = el('p', 'muted', '请选择目标，再选择动词。');
+  hint.id = 'target-hint';
+  hint.setAttribute('role', 'status');
+  targets.setAttribute('aria-describedby', hint.id);
   const actions = verbButtons(itemVerbs, verb => {
-    if (!select.reportValidity() || !syncBeforeAction()) return;
-    selectedTarget = select.value;
+    const selected = targets.querySelector('input:checked');
+    if (!selected) {
+      hint.textContent = '请先选择一个目标。';
+      targets.querySelector('input')?.focus();
+      return;
+    }
+    if (!syncBeforeAction()) return;
+    selectedTarget = selected.value;
     apply(useItem(state, item, selectedTarget, verb), { scrollToResult: true });
   });
-  form.append(label, select, actions);
+  form.append(targets, hint, actions);
   return form;
 }
 
@@ -356,14 +420,10 @@ function renderGrammar() {
   paper.append(el('h2', '', '日语文法'));
   paper.append(el('p', 'muted', '查阅游戏里常用的动词、读音和助词用法。'));
   const list = el('dl', 'grammar-list');
-  for (const [word, reading, meaning, example] of Object.values(verbs)) {
+  for (const [word, , meaning, example] of Object.values(verbs)) {
     const entry = el('div');
-    const term = el('dt', '', word);
-    term.lang = 'ja';
-    const kana = el('span', 'muted', reading);
-    term.append(' ', kana);
-    const sample = el('dd', 'grammar-example', example);
-    sample.lang = 'ja';
+    const term = ja('dt', '', word);
+    const sample = ja('dd', 'grammar-example', example);
     entry.append(term, el('dd', '', meaning), sample);
     list.append(entry);
   }
@@ -380,7 +440,8 @@ function renderGrammar() {
 function renderEnding() {
   const layout = el('div', 'layout');
   const ending = el('section', 'paper panel');
-  const title = el('h2', '', '四幕完结 · 大地の祝福');
+  const title = el('h2', '', '四幕完结 · ');
+  title.append(ja('span', '', '大地の祝福'));
   title.tabIndex = -1;
   ending.append(title, el('p', '', '萨温之夜即将过去，暖意重返大地。'));
   ending.append(cardList(endingCards(state)));
@@ -406,7 +467,8 @@ function render() {
   chapters.replaceChildren();
   for (const { act } of scenes) {
     const locked = act > state.act;
-    const label = el(locked ? 'span' : 'a', locked ? 'chapter locked' : 'chapter', `第 ${act} 幕`);
+    const label = el(locked ? 'span' : 'a', locked ? 'chapter locked' : 'chapter');
+    label.append(ja('span', '', `第 ${act} 幕`));
     if (!locked) label.href = `#act-${act}`;
     if (route === `act-${act}`) label.setAttribute('aria-current', 'step');
     label.append(el('small', '', locked ? '未解锁' : act < state.act ? '可回看' : '进行中'));
@@ -441,5 +503,8 @@ window.addEventListener('storage', event => {
   if ((event.key === key || event.key === null) && !memoryOnly && loadStored()) render();
 });
 
+for (const element of document.querySelectorAll('[lang="ja"]')) {
+  setJapaneseText(element, element.textContent);
+}
 loadStored();
 render();
